@@ -1,7 +1,7 @@
 #  StarCraft2 - API
 import sc2
 import random
-from sc2 import run_game, maps, Race, Difficulty
+from sc2 import run_game, maps, Race, Difficulty, position
 from sc2.player import Bot, Computer
 from sc2.ids.unit_typeid import UnitTypeId
 
@@ -18,6 +18,7 @@ class MyBot(sc2.BotAI):
 
     async def on_step(self, iteration):
         self.iteration = iteration
+        await self.scout()
         await self.distribute_workers() 
         await self.build_workers()
         await self.build_pylons()  # pylons are protoss supply buildings
@@ -29,16 +30,53 @@ class MyBot(sc2.BotAI):
         await self.attack()  # basic attacking method
 
     async def intel(self):
-        
+
+        draw_params = {
+            UnitTypeId.NEXUS:           [15, (  0, 255,   0)],
+            UnitTypeId.PYLON:           [ 3, ( 20, 235,   0)],
+            UnitTypeId.PROBE:           [ 1, ( 55, 200,   0)],
+            UnitTypeId.ASSIMILATOR:     [ 2, ( 55, 200,   0)],
+            UnitTypeId.GATEWAY:         [ 3, (200, 100,   0)],
+            UnitTypeId.CYBERNETICSCORE: [ 3, (150, 150,   0)],
+            UnitTypeId.STARGATE:        [ 5, (255,   0,   0)],
+            UnitTypeId.VOIDRAY:         [ 3, (255, 100,   0)],
+            UnitTypeId.ROBOTICSFACILITY:[ 5, (215, 155,   0)],
+        }
+
+        base_names = ['nexus', 'commandcenter', 'hatchery']
+        worker_names = ['probe', 'scv', 'drone']
         game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
 
-        #   drawing NEXUSES on a map
+        for unit_type in draw_params:
+            for unit in self.units(unit_type).ready:
+                unit_coor = unit.position
+                cv2.circle(game_data, (int(unit_coor[0]), int(unit_coor[1])), draw_params[unit_type][0], draw_params[unit_type][1], -1)
 
-        for nexus in self.units(UnitTypeId.NEXUS):
-            nexus_coor = nexus.position
-            cv2.circle(game_data, (int(nexus_coor[0]), int(nexus_coor[1])), 10, (0, 255, 0), -1)
+        for enemy_building in self.known_enemy_structures:
+            enemy_coor = enemy_building.position
 
-        #   flipping image to match coors
+            if enemy_building.name.lower() not in base_names:
+                cv2.circle(game_data, (int(enemy_coor[0]), int(enemy_coor[1])), 5, (200, 50, 212), -1)
+
+            ## O CHUJ CHODZI - DO WYJEBANIA ????!!!!
+            elif enemy_building.name.lower() in base_names:
+                cv2.circle(game_data, (int(enemy_coor[0]), int(enemy_coor[1])), 15, (0, 0, 255), -1)
+
+        for enemy_unit in self.known_enemy_units:
+
+            if not enemy_unit.is_structure:
+                unit_coor = enemy_unit.position
+
+                if enemy_unit.name.lower() in worker_names:
+                    cv2.circle(game_data, (int(unit_coor[0]), int(unit_coor[1])), 1, (55, 0, 155), -1)
+                else: 
+                    cv2.circle(game_data, (int(unit_coor[0]), int(unit_coor[1])), 3, (50, 0, 215), -1)
+
+        for observer in self.units(UnitTypeId.OBSERVER).ready:
+            unit_coor = observer.position
+            cv2.circle(game_data, (int(unit_coor[0]), int(unit_coor[1])), 1, (255, 255, 255), -1)
+
+        # #   flipping image to match coors
         flipped = cv2.flip(game_data, 0)
 
         #   resize - only to visualization
@@ -46,24 +84,20 @@ class MyBot(sc2.BotAI):
         cv2.imshow('Intel', resized)
         cv2.waitKey(1)
 
+    async def scout(self):
 
-    async def intel(self):
-        
-        game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
+        if len(self.units(UnitTypeId.OBSERVER)) > 0:
 
-        #   drawing NEXUSES on a map
+            scout = self.units(UnitTypeId.OBSERVER)[0]
+            if scout.is_idle:
+                enemy_location = self.enemy_start_locations[0]
+                move_to = self.random_location_variance(enemy_location)
+                await self.do(scout.move(move_to))
 
-        for nexus in self.units(UnitTypeId.NEXUS):
-            nexus_coor = nexus.position
-            cv2.circle(game_data, (int(nexus_coor[0]), int(nexus_coor[1])), 10, (0, 255, 0), -1)
-
-        #   flipping image to match coors
-        flipped = cv2.flip(game_data, 0)
-
-        #   resize - only to visualization
-        resized = cv2.resize(flipped, dsize = None, fx = 2, fy = 2)
-        cv2.imshow('Intel', resized)
-        cv2.waitKey(1)
+        else:
+            for robotfacility in self.units(UnitTypeId.ROBOTICSFACILITY).ready.noqueue:
+                if self.can_afford(UnitTypeId.OBSERVER) and self.supply_left > 0:
+                    await self.do(robotfacility.train(UnitTypeId.OBSERVER))
 
 
     async def build_workers(self):
@@ -102,35 +136,29 @@ class MyBot(sc2.BotAI):
 
     async def offensive_force_buildings(self):
         
-        #  looking for a pylon to build near
         if self.units(UnitTypeId.PYLON).ready.exists:
-            pylon = self.units(UnitTypeId.PYLON).ready.random  
-            
-            #  build a cybernetics core if gateway is already done
+            pylon = self.units(UnitTypeId.PYLON).ready.random
 
             if self.units(UnitTypeId.GATEWAY).ready.exists and not self.units(UnitTypeId.CYBERNETICSCORE):
                 if self.can_afford(UnitTypeId.CYBERNETICSCORE) and not self.already_pending(UnitTypeId.CYBERNETICSCORE):
-                    await self.build(UnitTypeId.CYBERNETICSCORE, near = pylon)
-
-            #  building gateway otherwise
+                    await self.build(UnitTypeId.CYBERNETICSCORE, near=pylon)
 
             elif len(self.units(UnitTypeId.GATEWAY)) < 1:
                 if self.can_afford(UnitTypeId.GATEWAY) and not self.already_pending(UnitTypeId.GATEWAY):
-                    await self.build(UnitTypeId.GATEWAY, near = pylon)
+                    await self.build(UnitTypeId.GATEWAY, near=pylon)
+
+            if self.units(UnitTypeId.CYBERNETICSCORE).ready.exists:
+                if len(self.units(UnitTypeId.ROBOTICSFACILITY)) < 1:
+                    if self.can_afford(UnitTypeId.ROBOTICSFACILITY) and not self.already_pending(UnitTypeId.ROBOTICSFACILITY):
+                        await self.build(UnitTypeId.ROBOTICSFACILITY, near=pylon)
 
             if self.units(UnitTypeId.CYBERNETICSCORE).ready.exists:
                 if len(self.units(UnitTypeId.STARGATE)) < (self.iteration / self.ITERATIONS_PER_MINUTE):
                     if self.can_afford(UnitTypeId.STARGATE) and not self.already_pending(UnitTypeId.STARGATE):
-                        await self.build(UnitTypeId.STARGATE, near = pylon)
+                        await self.build(UnitTypeId.STARGATE, near=pylon)
 
 
     async def build_offensive_force(self):
-
-        # build units for army - Stalkers, Voidrays
-        # for gateway in self.units(UnitTypeId.GATEWAY).ready.noqueue:
-        #     if not self.units(UnitTypeId.STALKER).amount > self.units(UnitTypeId.VOIDRAY).amount:
-        #         if self.can_afford(UnitTypeId.STALKER) and self.supply_left > 0:
-        #             await self.do(gateway.train(UnitTypeId.STALKER))
 
         for stargate in self.units(UnitTypeId.STARGATE).ready.noqueue:
             if self.can_afford(UnitTypeId.VOIDRAY) and self.supply_left > 0:
@@ -152,14 +180,11 @@ class MyBot(sc2.BotAI):
         #     if self.units(UNIT).amount > aggressive_units[UNIT][0] and self.units(UNIT).amount > aggressive_units[UNIT][1]:
         #         for s in self.units(UNIT).idle:
         #             await self.do(s.attack(self.find_target(self.state)))
-<<<<<<< HEAD
 
         #     elif self.units(UNIT).amount > aggressive_units[UNIT][1]:
         #         if len(self.known_enemy_units) > 0:
         #             for s in self.units(UNIT).idle:
         #                 await self.do(s.attack(random.choice(self.known_enemy_units)))
-=======
->>>>>>> 73717b610f9ba0f1da793de30941a0c8e4e478cc
 
         #     elif self.units(UNIT).amount > aggressive_units[UNIT][1]:
         #         if len(self.known_enemy_units) > 0:
@@ -176,7 +201,25 @@ class MyBot(sc2.BotAI):
             return self.enemy_start_locations[0]
 
 
+    def random_location_variance(self, enemy_start_location):
 
+        x_coor = enemy_start_location[0]
+        y_coor = enemy_start_location[1]
+
+        x_coor += ((random.randrange(-20, 20))/100) * enemy_start_location[0]
+        y_coor += ((random.randrange(-20, 20))/100) * enemy_start_location[1]
+
+        if x_coor < 0: 
+            x_coor = 0
+        if y_coor < 0: 
+            y_coor = 0
+        if x_coor > self.game_info.map_size[0]: 
+            x_coor = self.game_info.map_size[0]
+        if y_coor > self.game_info.map_size[1]: 
+            y_coor = self.game_info.map_size[1]
+
+        go_to = position.Point2(position.Pointlike((x_coor, y_coor)))
+        return go_to
 
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MyBot()),
