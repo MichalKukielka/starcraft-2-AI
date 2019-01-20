@@ -47,6 +47,25 @@ class MyBot(sc2.BotAI):
         cv2.waitKey(1)
 
 
+    async def intel(self):
+        
+        game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
+
+        #   drawing NEXUSES on a map
+
+        for nexus in self.units(UnitTypeId.NEXUS):
+            nexus_coor = nexus.position
+            cv2.circle(game_data, (int(nexus_coor[0]), int(nexus_coor[1])), 10, (0, 255, 0), -1)
+
+        #   flipping image to match coors
+        flipped = cv2.flip(game_data, 0)
+
+        #   resize - only to visualization
+        resized = cv2.resize(flipped, dsize = None, fx = 2, fy = 2)
+        cv2.imshow('Intel', resized)
+        cv2.waitKey(1)
+
+
     async def build_workers(self):
 
         if (len(self.units(UnitTypeId.NEXUS)) * 16) > len(self.units(UnitTypeId.PROBE)) and len(self.units(UnitTypeId.PROBE)) < self.MAX_WORKERS:
@@ -133,12 +152,19 @@ class MyBot(sc2.BotAI):
         #     if self.units(UNIT).amount > aggressive_units[UNIT][0] and self.units(UNIT).amount > aggressive_units[UNIT][1]:
         #         for s in self.units(UNIT).idle:
         #             await self.do(s.attack(self.find_target(self.state)))
+<<<<<<< HEAD
 
         #     elif self.units(UNIT).amount > aggressive_units[UNIT][1]:
         #         if len(self.known_enemy_units) > 0:
         #             for s in self.units(UNIT).idle:
         #                 await self.do(s.attack(random.choice(self.known_enemy_units)))
+=======
+>>>>>>> 73717b610f9ba0f1da793de30941a0c8e4e478cc
 
+        #     elif self.units(UNIT).amount > aggressive_units[UNIT][1]:
+        #         if len(self.known_enemy_units) > 0:
+        #             for s in self.units(UNIT).idle:
+        #                 await self.do(s.attack(random.choice(self.known_enemy_units)))
 
 
     def find_target(self, state):
@@ -148,6 +174,8 @@ class MyBot(sc2.BotAI):
             return random.choice(self.known_enemy_structures)
         else:
             return self.enemy_start_locations[0]
+
+
 
 
 run_game(maps.get("AbyssalReefLE"), [
