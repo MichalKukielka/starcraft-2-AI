@@ -9,6 +9,7 @@ from sc2.ids.unit_typeid import UnitTypeId
 import cv2
 import numpy as np
 
+
 class MyBot(sc2.BotAI):
 
     def __init__(self):
