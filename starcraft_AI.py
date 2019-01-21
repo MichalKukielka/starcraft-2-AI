@@ -13,6 +13,7 @@ class MyBot(sc2.BotAI):
         await self.build_assimilator()  # getting gas
         await self.offensive_force_buildings()
         await self.build_offensive_force() 
+        await self.attack()  # basic attacking method
 
     async def build_workers(self):
         # nexus = command center
@@ -71,6 +72,15 @@ class MyBot(sc2.BotAI):
         for gateway in self.units(UnitTypeId.GATEWAY).ready.noqueue:
             if self.can_afford(UnitTypeId.STALKER) and self.supply_left > 0:
                 await self.do(gateway.train(UnitTypeId.STALKER))
+
+    async def attack(self):
+
+        if self.units(UnitTypeId.STALKER).amount > 3: 
+            if len(self.known_enemy_units) > 0:
+                for stalker in self.units(UnitTypeId.STALKER).idle:
+                    await self.do(stalker.attack(random.choice(self.known_enemy_units)))
+
+
 
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MyBot()),
