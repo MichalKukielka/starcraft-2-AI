@@ -24,7 +24,7 @@ class MyBot(sc2.BotAI):
         print(game_result)
 
         if game_result == Result.Victory:
-            np.save("train_data/{}.npy".format(str(int(time.time()))), np.array(self.train_data))
+            np.save("train_data_hard_bot/{}.npy".format(str(int(time.time()))), np.array(self.train_data))
 
 
     async def on_step(self, iteration):
@@ -268,10 +268,10 @@ class MyBot(sc2.BotAI):
 
 counter = 0
 
-while counter < 10:
+while counter < 100:
     run_game(maps.get("AbyssalReefLE"), [
         Bot(Race.Protoss, MyBot()),
-        Computer(Race.Terran, Difficulty.Medium)
+        Computer(Race.Terran, Difficulty.Hard)
         ], realtime=False)
 
     counter = counter + 1
