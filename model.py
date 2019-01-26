@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2f206275ad1b88bb73a921568ec5b47cbc4aeeed
 import keras
 import keras.models import Sequential
 import keras.layers Dense, Dropout, Flatten
