@@ -5,7 +5,7 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.callbacks import TensorBoard
 
 import os
-import numpy as numpy
+import numpy as np
 import random
 
 
