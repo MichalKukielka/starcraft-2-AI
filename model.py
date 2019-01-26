@@ -39,6 +39,6 @@ learning_rate = 0.0001
 opt = keras.optimizers.adam(lr=learning_rate, decay=1e-6)
 
 model.compile(loss='categorical_crossentropy', optimizer = opt, metrics = ['accuracy'])
-``
+
 #   log via tensorboad
 tensorboard = TensorBoard(log_dir="logs/stage1")
