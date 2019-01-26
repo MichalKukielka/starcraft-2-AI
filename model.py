@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-
-=======
->>>>>>> 2f206275ad1b88bb73a921568ec5b47cbc4aeeed
 import keras
 import keras.models import Sequential
 import keras.layers Dense, Dropout, Flatten
@@ -43,6 +39,6 @@ learning_rate = 0.0001
 opt = keras.optimizers.adam(lr=learning_rate, decay=1e-6)
 
 model.compile(loss='categorical_crossentropy', optimizer = opt, metrics = ['accuracy'])
-
+``
 #   log via tensorboad
 tensorboard = TensorBoard(log_dir="logs/stage1")
